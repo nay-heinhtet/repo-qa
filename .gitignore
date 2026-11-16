@@ -8,3 +8,10 @@ __pycache__/
 node_modules/
 .venv/
 .DS_Store
+repos/
+eval/results/*.log
+.claude/
+.vscode/
+CLAUDE.md
+notes-*.md
+.scratch/

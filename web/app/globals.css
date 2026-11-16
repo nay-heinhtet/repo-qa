@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+/* Colour tokens. The one loud colour is the highlighter: it marks cited lines and [n] tabs. */
+:root {
+  --paper: #eef1ee;
+  --sheet: #f9faf8;
+  --ink: #152029;
+  --graphite: #5b6770;
+  --rule: #ced6d0;
+  --marker: #ffe066;
+  --marker-edge: #e0b400;
+  --ok: #1f6f5c;
+  --bad: #a8402f;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #141a1d;
+    --sheet: #1b2226;
+    --ink: #e4e8ec;
+    --graphite: #98a2ad;
+    --rule: #2e3843;
+    --marker: rgba(255, 214, 90, 0.26);
+    --marker-edge: #f5c518;
+    --ok: #5cc2a4;
+    --bad: #f08a78;
+  }
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-sheet: var(--sheet);
+  --color-ink: var(--ink);
+  --color-graphite: var(--graphite);
+  --color-rule: var(--rule);
+  --color-marker: var(--marker);
+  --color-marker-edge: var(--marker-edge);
+  --color-ok: var(--ok);
+  --color-bad: var(--bad);
+  --font-serif: var(--font-source-serif);
+  --font-mono: var(--font-jetbrains);
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-source-serif), Georgia, serif;
+}
+
+:focus-visible {
+  outline: 2px solid var(--marker-edge);
+  outline-offset: 2px;
+}
+
+/* Cited lines in the code viewer: a highlighter stroke with a darker edge on the left. */
+.line-marked {
+  background: var(--marker);
+  box-shadow: inset 3px 0 0 var(--marker-edge);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .line-marked { transition: background-color 300ms ease-out; }
+}
+
+/* A term link jumps to its entry in Terms; the entry is marked so the eye lands on it. */
+.term-entry { scroll-margin-top: 6rem; }
+.term-entry:target { background: var(--marker); }
+@media (prefers-reduced-motion: no-preference) {
+  .term-entry { transition: background-color 600ms ease-out; }
+}

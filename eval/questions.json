@@ -1,0 +1,99 @@
+[
+  {"id": "q01", "repo": "RAG-Anything", "commit": "2cd2b33", "category": "locate",
+   "question": "Where is the circuit breaker that stops calls after repeated failures implemented?",
+   "expected": [{"file": "raganything/resilience.py", "start": 229, "end": 330}],
+   "key_facts": ["class CircuitBreaker in raganything/resilience.py"], "answerable": true},
+
+  {"id": "q02", "repo": "RAG-Anything", "commit": "2cd2b33", "category": "locate",
+   "question": "Which class handles image content in a document?",
+   "expected": [{"file": "raganything/modalprocessors.py", "start": 923, "end": 1160}],
+   "key_facts": ["ImageModalProcessor in raganything/modalprocessors.py", "it subclasses BaseModalProcessor"], "answerable": true},
+
+  {"id": "q03", "repo": "RAG-Anything", "commit": "2cd2b33", "category": "locate",
+   "question": "Where is the function that picks a parser object from a parser name like 'docling'?",
+   "expected": [{"file": "raganything/parser.py", "start": 3556, "end": 3584}],
+   "key_facts": ["get_parser in raganything/parser.py"], "answerable": true},
+
+  {"id": "q04", "repo": "RAG-Anything", "commit": "2cd2b33", "category": "locate",
+   "question": "Where is the cache key for a multimodal query generated?",
+   "expected": [{"file": "raganything/query.py", "start": 66, "end": 133}],
+   "key_facts": ["QueryMixin._generate_multimodal_cache_key in raganything/query.py"], "answerable": true},
+
+  {"id": "q05", "repo": "RAG-Anything", "commit": "2cd2b33", "category": "locate",
+   "question": "Where is the list of parser options that change a cached parse result defined?",
+   "expected": [{"file": "raganything/parse_options.py", "start": 12, "end": 30}],
+   "key_facts": ["PARSER_CACHE_KWARGS in raganything/parse_options.py"], "answerable": true},
+
+  {"id": "q06", "repo": "RAG-Anything", "commit": "2cd2b33", "category": "explain",
+   "question": "What does _ensure_lightrag_initialized do?",
+   "expected": [{"file": "raganything/raganything.py", "start": 314, "end": 317}],
+   "key_facts": ["it takes the instance's _initialization_lock", "then calls _initialize_lightrag and returns its result", "the lock stops two coroutines initialising LightRAG at once"], "answerable": true},
+
+  {"id": "q07", "repo": "RAG-Anything", "commit": "2cd2b33", "category": "explain",
+   "question": "How does async_retry decide how long to wait between attempts and when to give up?",
+   "expected": [{"file": "raganything/resilience.py", "start": 144, "end": 226}],
+   "key_facts": ["it tries up to max_attempts times (default 3)", "the delay grows exponentially from base_delay (1 s) by exponential_base (2), capped at max_delay (60 s)", "optional jitter adds 0-50% random delay", "only retryable exceptions are retried; after the last attempt the error is logged and raised"], "answerable": true},
+
+  {"id": "q08", "repo": "RAG-Anything", "commit": "2cd2b33", "category": "explain",
+   "question": "When does the circuit breaker open, and how does it recover?",
+   "expected": [{"file": "raganything/resilience.py", "start": 229, "end": 318}],
+   "key_facts": ["it opens when failures within reset_timeout reach failure_threshold (default 5)", "while open, calls raise CircuitBreakerOpen without running the function", "after reset_timeout (default 60 s) it becomes half-open and lets one trial call through", "a success closes it; a failed trial reopens it at once"], "answerable": true},
+
+  {"id": "q09", "repo": "RAG-Anything", "commit": "2cd2b33", "category": "explain",
+   "question": "How does aquery decide whether to use the vision-model enhanced query?",
+   "expected": [{"file": "raganything/query.py", "start": 135, "end": 182}],
+   "key_facts": ["vlm_enhanced is popped from kwargs", "if not given, it defaults to True when vision_model_func is set", "if enabled and a vision model exists it calls aquery_vlm_enhanced", "if requested without a vision model it logs a warning and falls back to a normal text query"], "answerable": true},
+
+  {"id": "q10", "repo": "RAG-Anything", "commit": "2cd2b33", "category": "explain",
+   "question": "What does relevant_parser_kwargs do with a vlm_url, and why?",
+   "expected": [{"file": "raganything/parse_options.py", "start": 33, "end": 50}],
+   "key_facts": ["it replaces the URL with 'sha256:' plus a SHA-256 digest", "because the URL can embed credentials and the parse cache persists the options"], "answerable": true},
+
+  {"id": "q11", "repo": "RAG-Anything", "commit": "2cd2b33", "category": "flow",
+   "question": "What are the main steps of process_document_complete, from file to stored content?",
+   "expected": [{"file": "raganything/processor.py", "start": 1985, "end": 2177}],
+   "key_facts": ["ensure LightRAG is initialised", "step 1: parse the document into a content list", "step 2: separate text and multimodal content", "step 3: insert the text into LightRAG", "step 4: process multimodal items with the specialised processors, or mark multimodal processing complete if there are none"], "answerable": true},
+
+  {"id": "q12", "repo": "RAG-Anything", "commit": "2cd2b33", "category": "flow",
+   "question": "Walk through what aquery_vlm_enhanced does to answer a question using images.",
+   "expected": [{"file": "raganything/query.py", "start": 391, "end": 476}],
+   "key_facts": ["it needs vision_model_func and makes sure LightRAG is initialised", "it asks LightRAG for the retrieval prompt only (only_need_prompt)", "it finds image paths in that prompt and encodes them (_process_image_paths_for_vlm)", "with no valid images it falls back to a normal query", "otherwise it builds VLM messages with the images and calls the vision model"], "answerable": true},
+
+  {"id": "q13", "repo": "RAG-Anything", "commit": "2cd2b33", "category": "flow",
+   "question": "Which multimodal processors are created at start-up and what decides whether each one exists?",
+   "expected": [{"file": "raganything/raganything.py", "start": 222, "end": 303}],
+   "key_facts": ["image, table and equation processors are created when their enable_* config flag is on", "audio and video need their flags and their optional dependencies", "the image and video processors use vision_model_func if given, else llm_model_func", "a GenericModalProcessor is always added as a fallback"], "answerable": true},
+
+  {"id": "q14", "repo": "RAG-Anything", "commit": "2cd2b33", "category": "flow",
+   "question": "How does process_folder_complete find the files it will process?",
+   "expected": [{"file": "raganything/batch.py", "start": 35, "end": 110}],
+   "key_facts": ["it fills unset options from the config", "it uses rglob when recursive, glob otherwise", "it keeps files whose lowercased suffix is in the supported extensions", "it returns early if no files match"], "answerable": true},
+
+  {"id": "q15", "repo": "RAG-Anything", "commit": "2cd2b33", "category": "flow",
+   "question": "Before processing multimodal content, how does _process_multimodal_content decide to skip a document that was already done?",
+   "expected": [{"file": "raganything/processor.py", "start": 867, "end": 1003}],
+   "key_facts": ["force_reprocess skips the check", "otherwise it reads the doc_status and the multimodal-processed flag", "if multimodal content is already processed it skips (marking the document complete if it was still HANDLING)", "a PROCESSED text status without the multimodal flag still gets multimodal processing"], "answerable": true},
+
+  {"id": "q16", "repo": "RAG-Anything", "commit": "2cd2b33", "category": "value",
+   "question": "Which document parser is used by default, and how can it be changed?",
+   "expected": [{"file": "raganything/config.py", "start": 35, "end": 36}],
+   "key_facts": ["mineru", "set the PARSER environment variable (or the parser field); options are mineru, docling, paddleocr"], "answerable": true},
+
+  {"id": "q17", "repo": "RAG-Anything", "commit": "2cd2b33", "category": "value",
+   "question": "What is the default context window and context mode for context extraction?",
+   "expected": [{"file": "raganything/config.py", "start": 98, "end": 106}],
+   "key_facts": ["context_window defaults to 1 (CONTEXT_WINDOW)", "context_mode defaults to 'page' (CONTEXT_MODE)"], "answerable": true},
+
+  {"id": "q18", "repo": "RAG-Anything", "commit": "2cd2b33", "category": "value",
+   "question": "Are audio and video processing enabled by default?",
+   "expected": [{"file": "raganything/config.py", "start": 60, "end": 70}],
+   "key_facts": ["no, both default to False", "they need the optional audio / video extras"], "answerable": true},
+
+  {"id": "q19", "repo": "RAG-Anything", "commit": "2cd2b33", "category": "unanswerable",
+   "question": "Which database table stores user passwords?",
+   "expected": [], "key_facts": ["the repo has no user accounts or password storage"], "answerable": false},
+
+  {"id": "q20", "repo": "RAG-Anything", "commit": "2cd2b33", "category": "unanswerable",
+   "question": "Which HTTP port does RAG-Anything's built-in web server listen on?",
+   "expected": [], "key_facts": ["the package has no built-in web server"], "answerable": false}
+]
