@@ -8,6 +8,7 @@ Each result is a dict: id, kind, file, name, start, end, part, parts, text, scor
 """
 
 import re
+import sys
 import time
 
 from rank_bm25 import BM25Okapi
@@ -25,6 +26,7 @@ should the this that to was what when where which who why with you your""".split
 
 # One BM25 index per collection, built the first time the repo is searched in this process.
 indexes = {}
+LOG = True  # print how long each BM25 build took; `repoqa search` turns it off unless --verbose
 
 
 def tokens(text):
@@ -65,7 +67,9 @@ def load(repo):
                 parts.setdefault((c["file"], c["name"]), []).append(c)
         indexes[name] = {"collection": collection, "chunks": chunks, "parts": parts,
                          "by_id": {c["id"]: c for c in chunks}, "bm25": bm25}
-        print(f"[retrieve] BM25 over {len(chunks)} chunks of '{name}' built in {time.time() - began:.2f} s")
+        if LOG:
+            print(f"[retrieve] BM25 over {len(chunks)} chunks of '{name}' built in {time.time() - began:.2f} s",
+                  file=sys.stderr)
     return indexes[name]
 
 

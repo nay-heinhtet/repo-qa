@@ -1,0 +1,45 @@
+{
+  "config": {
+    "mode": "single",
+    "backend": "gemini",
+    "model": "gemini-3.5-flash-lite",
+    "top_k": 8,
+    "candidates": 20,
+    "questions": 20
+  },
+  "ablation": {
+    "hybrid": {
+      "hit@8": 0.9444444444444444,
+      "full_coverage": 0.7777777777777778,
+      "misses": [
+        "q17"
+      ]
+    },
+    "hybrid-no-parts": {
+      "hit@8": 0.9444444444444444,
+      "full_coverage": 0.4444444444444444,
+      "misses": [
+        "q17"
+      ]
+    },
+    "dense": {
+      "hit@8": 0.8333333333333334,
+      "full_coverage": 0.2777777777777778,
+      "misses": [
+        "q16",
+        "q17",
+        "q18"
+      ]
+    },
+    "bm25": {
+      "hit@8": 0.8888888888888888,
+      "full_coverage": 0.4444444444444444,
+      "misses": [
+        "q11",
+        "q13"
+      ]
+    }
+  },
+  "scores": null,
+  "records": []
+}

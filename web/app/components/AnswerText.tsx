@@ -38,8 +38,11 @@ export function inline(
   active: number | null = null,
   decorate: (plain: string) => ReactNode = (plain) => plain,
 ): ReactNode {
-  // Split on `code` spans and [n] / [n, m] markers, keeping them.
-  return text.split(/(`[^`]+`|\[\d+(?:\s*,\s*\d+)*\])/g).map((part, i) => {
+  // Split on `code` spans, **bold** words and [n] / [n, m] markers, keeping them.
+  return text.split(/(`[^`]+`|\*\*[^*]+\*\*|\[\d+(?:\s*,\s*\d+)*\])/g).map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
+      return <strong key={i} className="font-semibold">{decorate(part.slice(2, -2))}</strong>;
+    }
     if (part.startsWith("`") && part.endsWith("`") && part.length > 2) {
       return <code key={i} className="rounded-sm bg-rule/50 px-1 font-mono text-[0.85em]">{part.slice(1, -1)}</code>;
     }

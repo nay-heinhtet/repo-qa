@@ -1,6 +1,6 @@
 # 0010 Run locally only for now
 
-Status: accepted, 16 Nov 2026 (settles P1; issue 11 deferred)
+Status: superseded by 0013 (17 Nov 2026); was accepted 16 Nov 2026
 
 ## Context
 The tool is for the user's own use. A public demo needs a Hugging Face and a Vercel account, a hosted secret, and a read-only mode.

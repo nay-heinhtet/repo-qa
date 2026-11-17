@@ -3,6 +3,8 @@
 Backends, chosen by the `backend` argument or the LLM_BACKEND environment variable:
 - gemini:     Google Gemini API, key in GEMINI_API_KEY (read from .env locally).
 - claude-cli: the `claude -p` command, using your own Claude Code login. No key in this project.
+LLM_BACKENDS limits which are allowed: the public demo sets it to `gemini`, since the Claude login is
+personal and never goes on a server.
 """
 
 import json
@@ -15,7 +17,7 @@ from dotenv import load_dotenv
 
 load_dotenv()  # copies values from repo-qa/.env into os.environ, if the file exists
 
-BACKENDS = ("gemini", "claude-cli")
+BACKENDS = tuple(os.environ.get("LLM_BACKENDS", "gemini,claude-cli").split(","))
 
 RETRIES = 3  # for Gemini 503 (overloaded) and 429 (rate limited): waits 5, 10, 20 s
 
@@ -37,11 +39,12 @@ def wait_for_rate_limit():
 def ask_llm(system, prompt, schema, backend=None):
     """Send one prompt and return the model's reply as a dict matching `schema` (a JSON Schema)."""
     backend = backend or os.environ.get("LLM_BACKEND", "gemini")
+    if backend not in BACKENDS:
+        raise ValueError(f"Unknown LLM_BACKEND {backend!r}; use one of {BACKENDS}")
     if backend == "gemini":
         return ask_gemini(system, prompt, schema)
     if backend == "claude-cli":
         return ask_claude_cli(system, prompt, schema)
-    raise ValueError(f"Unknown LLM_BACKEND {backend!r}; use one of {BACKENDS}")
 
 
 def ask_gemini(system, prompt, schema):

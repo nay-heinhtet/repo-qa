@@ -1,7 +1,6 @@
-import RepoQA from "./components/RepoQA";
+import Home from "./components/Home";
 
-// The page itself is a server component that only renders the client app; all data comes from
-// FastAPI in the browser (spec W5).
+// The home page lists the repos; each opens at /<repo>, and its questions at /<repo>/ask.
 export default function Page() {
-  return <RepoQA />;
+  return <Home />;
 }

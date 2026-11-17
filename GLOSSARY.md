@@ -51,3 +51,11 @@ _Avoid_: Checked answer, grounded answer
 **Hit**:
 An evaluation question for which at least one retrieved chunk overlaps the expected lines.
 _Avoid_: Match, recall
+
+**Code search**:
+Finding the chunks of code that match a description, across every indexed repo, and returning the code itself with file:line. No model writes anything. Reached through `repoqa search` and the Claude Code tool.
+_Avoid_: Ask, query, lookup
+
+**Own project**:
+One of the user's own projects, indexed from its folder on this laptop instead of cloned from GitHub. It can be re-indexed after its code changes.
+_Avoid_: Local repo, private repo

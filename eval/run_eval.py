@@ -4,6 +4,7 @@
     python eval/run_eval.py                             retrieval + answers + judge (about 38 model calls)
     python eval/run_eval.py --backend claude-cli        same, with Claude answering and judging
     python eval/run_eval.py --mode agent                the agent instead of single-shot
+    python eval/run_eval.py --retry-errors <run.json>   re-run only the questions that failed (e.g. on a 503)
 
 Metrics (spec E4, E5):
 - hit@8: at least one retrieved chunk overlaps an expected range.
@@ -172,7 +173,10 @@ def main():
     parser.add_argument("--mode", choices=["single", "agent"], default="single")
     parser.add_argument("--backend", choices=BACKENDS, default=os.environ.get("LLM_BACKEND", "gemini"))
     parser.add_argument("--only", nargs="*", help="question ids to run, e.g. q01 q19")
+    parser.add_argument("--retry-errors", metavar="RUN_JSON", help="re-run a run's failed questions and merge them in")
     args = parser.parse_args()
+    if args.retry_errors:
+        return retry_errors(Path(args.retry_errors))
 
     questions = json.loads((EVAL / "questions.json").read_text())
     if args.only:
@@ -201,6 +205,30 @@ def main():
     out.write_text(json.dumps({"config": config, "ablation": ablation, "scores": scores, "records": records}, indent=2))
     if not args.only:
         add_results_row(stamp, config, scores, ablation)
+    print(f"\nwrote {out.relative_to(ROOT)}")
+
+
+def retry_errors(path):
+    """Answers the questions a run lost to errors (a model outage, say), merges them into that run and
+    adds a row for the merged run, so one busy spell does not cost a full re-run."""
+    path = path.resolve()
+    run = json.loads(path.read_text())
+    config = run["config"]
+    failed = {r["id"] for r in run["records"] if r["grade"] == "error"}
+    if not failed:
+        print("no errors to re-run")
+        return
+    questions = [q for q in json.loads((EVAL / "questions.json").read_text()) if q["id"] in failed]
+    print(f"re-running {sorted(failed)} ({config['mode']}, {config['model']})")
+    redone = {r["id"]: r for r in full_run(questions, config["mode"], config["backend"])}
+    records = [redone.get(r["id"], r) for r in run["records"]]
+    scores = summarise(records)
+    print("\n" + "  ".join(f"{k}={v:.0%}" if isinstance(v, float) else f"{k}={v}" for k, v in scores.items()))
+    config = {**config, "retried": sorted(failed)}
+    out = path.with_name(path.stem + "-retried.json")
+    out.write_text(json.dumps({**run, "config": config, "scores": scores, "records": records}, indent=2))
+    add_results_row(datetime.now().strftime("%Y-%m-%d %H:%M"), {**config, "mode": f'{config["mode"]} (errors re-run)'},
+                    scores, run["ablation"])
     print(f"\nwrote {out.relative_to(ROOT)}")
 
 

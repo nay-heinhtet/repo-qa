@@ -15,3 +15,7 @@ eval/results/*.log
 CLAUDE.md
 notes-*.md
 .scratch/
+deploy/build/
+deploy/demo.env
+deploy/vercel-api/
+deploy/.vercel-link/
