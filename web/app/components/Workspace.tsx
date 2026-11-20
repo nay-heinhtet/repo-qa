@@ -5,6 +5,7 @@ import { Answer, api, Flow, Overview } from "../lib/api";
 import { inline } from "./AnswerText";
 import { Settings } from "../lib/hooks";
 import AnswerPanel from "./AnswerPanel";
+import AskProgress, { addEvent, Progress, startProgress } from "./AskProgress";
 import AskNext from "./AskNext";
 import CodeViewer, { Selection } from "./CodeViewer";
 import QuestionBox from "./QuestionBox";
@@ -24,6 +25,7 @@ export default function Workspace({ repo, overview, flow, settings, onSettings, 
 }) {
   const [answer, setAnswer] = useState<Answer | null>(null);
   const [asking, setAsking] = useState(false);
+  const [progress, setProgress] = useState<Progress | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selection, setSelection] = useState<Selection | null>(initialFile ? { path: initialFile } : null);
   const [activeCite, setActiveCite] = useState<number | null>(null);
@@ -35,15 +37,18 @@ export default function Workspace({ repo, overview, flow, settings, onSettings, 
     setAsking(true);
     setError(null);
     setActiveCite(null);
+    setProgress(startProgress());
     onAsked?.(question);
     try {
-      const result = await api.ask(repo, question, settings.backend, settings.mode);
+      const result = await api.ask(repo, question, settings.backend, settings.mode,
+        (event) => setProgress((p) => p && addEvent(p, event)));
       setAnswer(result);
       if (result.citations[0]) showCitation(result, result.citations[0].chunk_id);
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setAsking(false);
+      setProgress(null);
     }
   }
 
@@ -91,7 +96,7 @@ export default function Workspace({ repo, overview, flow, settings, onSettings, 
               )}
             </section>
           )}
-          {asking && !answer && <p className="text-graphite">Reading the code…</p>}
+          {asking && progress && <AskProgress progress={progress} />}
           {answer && (
             <div className={asking ? "opacity-50" : ""}>
               <AnswerPanel answer={answer} active={activeCite} onCite={(n) => showCitation(answer, n)} />

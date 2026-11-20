@@ -7,6 +7,8 @@ import { useJob } from "../lib/hooks";
 import { RepoTitle } from "./Chrome";
 import JobProgress from "./JobProgress";
 
+const README = "https://github.com/nay-heinhtet/repo-qa#run-it-locally";
+
 // The home page: your own projects, the GitHub repos, and forms to add either with a progress bar.
 export default function Home() {
   const [repos, setRepos] = useState<Repo[] | null>(null);
@@ -43,6 +45,14 @@ export default function Home() {
       {repos === null ? <p className="text-graphite">Loading…</p> : github.length === 0 ? (
         <p className="text-graphite">None yet.{health?.allow_add_repos && " Add a public GitHub repo below."}</p>
       ) : <RepoList repos={github} />}
+
+      {/* the public demo turns adding off (ADR 0014): say so where the forms would be */}
+      {health && !health.allow_add_repos && (
+        <p className="mt-6 border-l-2 border-rule pl-3 text-graphite">
+          This demo has one repo. To add your own, run repo-qa locally (see
+          the <a href={README} className="text-ink underline underline-offset-2">README</a>).
+        </p>
+      )}
 
       {health?.allow_add_repos && (
         <>

@@ -7,6 +7,7 @@ LLM_BACKENDS limits which are allowed: the public demo sets it to `gemini`, sinc
 personal and never goes on a server.
 """
 
+import contextvars
 import json
 import os
 import subprocess
@@ -21,6 +22,9 @@ BACKENDS = tuple(os.environ.get("LLM_BACKENDS", "gemini,claude-cli").split(","))
 
 RETRIES = 3  # for Gemini 503 (overloaded) and 429 (rate limited): waits 5, 10, 20 s
 
+# Told about each pause before a Gemini call, as (seconds, reason), so the website can show the wait.
+on_wait = contextvars.ContextVar("on_wait", default=None)
+
 last_gemini_call = 0.0
 rate_lock = threading.Lock()  # the web server answers in several threads; they share one quota
 
@@ -32,6 +36,8 @@ def wait_for_rate_limit():
     with rate_lock:
         pause = last_gemini_call + gap - time.time()
         if pause > 0:
+            if pause > 0.5 and on_wait.get():
+                on_wait.get()(pause, "Waiting a moment to stay under Gemini's rate limit")
             time.sleep(pause)
         last_gemini_call = time.time()
 
@@ -66,6 +72,8 @@ def ask_gemini(system, prompt, schema):
                 raise
             pause = 5 * 2 ** attempt
             print(f"[gemini] {error.code}, retrying in {pause} s")
+            if on_wait.get():
+                on_wait.get()(pause, f"Gemini is busy, trying again in {pause} s")
             time.sleep(pause)
     usage = response.usage_metadata
     if usage:

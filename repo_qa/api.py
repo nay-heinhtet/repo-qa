@@ -11,7 +11,7 @@ Endpoints (spec W1):
     GET  /jobs/{id}                   progress of that job
     GET  /repos/{name}/overview       summary, file map, starter questions
     GET  /repos/{name}/flow           key files in reading order and how they connect
-    POST /ask {repo, question, backend?, mode?}
+    POST /ask {repo, question, backend?, mode?, stream?}   stream: one JSON line per step, then the result
     GET  /file?repo=&path=            one file's text, for the code viewer
 
 The LLM key stays here: llm.py reads it from .env. The browser only ever talks to this server.
@@ -19,6 +19,7 @@ The LLM key stays here: llm.py reads it from .env. The browser only ever talks t
 
 import json
 import os
+import queue
 import re
 import shutil
 import subprocess
@@ -31,11 +32,12 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from repo_qa import answer, chunker, flow, indexer, overview, retrieve, store
 from repo_qa.registry import ROOT, is_private, read_json, repos, write_json
-from repo_qa.llm import BACKENDS
+from repo_qa.llm import BACKENDS, on_wait
 
 CLONES = ROOT / "repos"
 ANSWER_CACHE = store.DB_PATH / "answers-cache.json"
@@ -278,6 +280,17 @@ class Ask(BaseModel):
     question: str = Field(min_length=3, max_length=500)
     backend: str | None = None
     mode: str = "single"
+    stream: bool = False  # the website sets it to show each step as it happens
+
+
+# How long recent steps took, per kind ("search", "model"), without any waits for Gemini; the website
+# estimates the time left from them. Starting values are typical local timings.
+STEP_SECONDS = {"search": [1.0, 1.5], "model": [7.0, 9.0, 12.0]}
+recent_steps = defaultdict(lambda: deque(maxlen=30))
+
+
+def step_history():
+    return {kind: [round(t, 1) for t in (recent_steps[kind] or start)] for kind, start in STEP_SECONDS.items()}
 
 
 def cache_key(body):
@@ -337,12 +350,55 @@ def ask(body: Ask, request: Request):
         return {**cached, "cached": True}
 
     check_rate_limit(client_ip(request))
+    if not body.stream:
+        return answer_and_cache(body, path, key)
+
+    # One JSON line per event: {"history", "steps"} first, then {"step", "done", "kind", "more"} as each
+    # step starts and ends, {"wait", "reason"} before a pause for Gemini, then {"result"} or
+    # {"error", "status"}. The answer runs in a thread so the lines go out as they happen.
+    events = queue.Queue()
+    timing = {"kind": None, "began": 0.0, "waited": 0.0}
+
+    def progress(label, done=True, kind=None, more=False):
+        if not done:
+            timing.update(kind=kind, began=time.time(), waited=0.0)
+        elif kind and timing["kind"] == kind:
+            recent_steps[kind].append(max(0.0, time.time() - timing["began"] - timing["waited"]))
+            timing["kind"] = None
+        events.put({"step": label, "done": done, "kind": kind, "more": more})
+
+    def wait(seconds, reason):
+        timing["waited"] += seconds
+        events.put({"wait": round(seconds, 1), "reason": reason})
+
+    def work():
+        on_wait.set(wait)
+        try:
+            events.put({"result": answer_and_cache(body, path, key, progress)})
+        except HTTPException as error:
+            events.put({"error": error.detail, "status": error.status_code})
+        except Exception as error:  # never leave the stream hanging
+            events.put({"error": f"the answer failed: {str(error)[:300]}", "status": 500})
+
+    def lines():
+        yield json.dumps({"history": step_history(), "steps": answer.STEPS if body.mode == "single" else None}) + "\n"
+        threading.Thread(target=work, daemon=True).start()
+        while True:
+            event = events.get()
+            yield json.dumps(event) + "\n"
+            if "result" in event or "error" in event:
+                return
+
+    return StreamingResponse(lines(), media_type="application/x-ndjson")
+
+
+def answer_and_cache(body, path, key, progress=answer.quiet):
     try:
         if body.mode == "agent":
             from repo_qa import agent
-            result = agent.ask(path, body.question, backend=body.backend)
+            result = agent.ask(path, body.question, backend=body.backend, progress=progress)
         else:
-            result = answer.ask(path, body.question, backend=body.backend)
+            result = answer.ask(path, body.question, backend=body.backend, progress=progress)
     except Exception as error:
         message = str(error)
         status = 429 if "429" in message or "RESOURCE_EXHAUSTED" in message else 502

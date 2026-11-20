@@ -68,13 +68,21 @@ def add_chunks(state, new):
     return len(added)
 
 
-def first_search(state: State):
+def report(config):
+    """The progress reporter passed to ask(), carried in the graph's config."""
+    return (config or {}).get("configurable", {}).get("progress", answer.quiet)
+
+
+def first_search(state: State, config=None):
+    report(config)("Searching the code", done=False, kind="search")
     add_chunks(state, retrieve.hybrid(state["repo"], state["question"]))
     state["steps"].append(f'search("{state["question"]}") -> {len(state["chunks"])} chunks')
+    report(config)(f'Searched the code: {len(state["chunks"])} pieces found', kind="search")
     return state
 
 
-def decide(state: State):
+def decide(state: State, config=None):
+    report(config)("Deciding whether it has enough to answer", done=False, kind="model")
     left = MAX_TOOL_CALLS - state["tool_calls"]
     prompt = (answer.build_prompt(state["question"], state["chunks"])
               + "\n\n<steps_so_far>\n" + "\n".join(state["steps"]) + "\n</steps_so_far>\n"
@@ -83,18 +91,24 @@ def decide(state: State):
     if left <= 0 and action["action"] != "answer":
         action = {"action": "answer", "thought": "tool limit reached"}
     state["action"] = action
+    if action["action"] == "answer":
+        report(config)("Wrote the answer", kind="model")
+    else:
+        report(config)("Decided to read more", kind="model", more=True)
     return state
 
 
-def search(state: State):
+def search(state: State, config=None):
     query = state["action"].get("query") or state["question"]
+    report(config)(f'Searching again for "{query}"', done=False, kind="search")
     added = add_chunks(state, retrieve.hybrid(state["repo"], query))
     state["tool_calls"] += 1
     state["steps"].append(f'search("{query}") -> {added} new chunks')
+    report(config)(f'Searched again for "{query}": {added} new pieces', kind="search")
     return state
 
 
-def open_file(state: State):
+def open_file(state: State, config=None):
     action = state["action"]
     state["tool_calls"] += 1
     root = Path(state["repo"]).resolve()
@@ -111,6 +125,7 @@ def open_file(state: State):
              "text": "\n".join(lines[start - 1:end])}
     add_chunks(state, [chunk])
     state["steps"].append(f'open_file("{path}", {start}, {end})')
+    report(config)(f"Read `{path}` lines {start}-{end}")
     return state
 
 
@@ -135,20 +150,21 @@ def build_graph():
 GRAPH = build_graph()
 
 
-def ask(repo, question, backend=None):
-    """Same result shape as answer.ask, plus `steps`."""
+def ask(repo, question, backend=None, progress=answer.quiet):
+    """Same result shape as answer.ask, plus `steps`. progress(label, done) is told each step."""
     import os
     backend = backend or os.environ.get("LLM_BACKEND", "gemini")
     began = time.time()
     state = GRAPH.invoke({"repo": str(repo), "question": question, "backend": backend, "chunks": [],
                           "steps": [], "tool_calls": 0, "action": {}},
-                         {"recursion_limit": 4 * MAX_TOOL_CALLS + 6})
+                         {"recursion_limit": 4 * MAX_TOOL_CALLS + 6, "configurable": {"progress": progress}})
     chunks, action = state["chunks"], state["action"]
     if all(k in action for k in ("answer", "citations", "found")):
         reply = {"answer": action["answer"], "citations": action["citations"], "found": action["found"]}
         verified = answer.check_citations(reply, chunks)
+        progress("Checked every citation against the code")
         result = {"question": question, **reply, "verified": verified, "chunks": chunks, "backend": backend}
     else:  # the model chose to answer but left the answer fields out: one plain answer call
-        result = answer.generate(question, chunks, backend)
+        result = answer.generate(question, chunks, backend, progress)
     state["steps"].append("answer")
     return {**result, "steps": state["steps"], "mode": "agent", "seconds": round(time.time() - began, 1)}

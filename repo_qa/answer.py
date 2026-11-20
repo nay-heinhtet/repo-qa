@@ -92,15 +92,30 @@ def check_citations(reply, chunks):
     return all(c["valid"] for c in reply["citations"])
 
 
-def generate(question, chunks, backend=None):
+def quiet(label, done=True, kind=None, more=False):
+    """The default progress reporter: says nothing. The website passes one that streams each step.
+    kind ("search" or "model") lets it time each sort of step; more marks the agent choosing to read more."""
+
+
+def generate(question, chunks, backend=None, progress=quiet):
     """One model call on chunks already retrieved. Used by ask() and by the evaluation."""
     backend = backend or os.environ.get("LLM_BACKEND", "gemini")
     began = time.time()
+    progress("Writing the answer", done=False, kind="model")
     reply = ask_llm(SYSTEM, build_prompt(question, chunks), SCHEMA, backend=backend)
+    progress("Wrote the answer", kind="model")
     verified = check_citations(reply, chunks)
+    progress("Checked every citation against the code")
     return {"question": question, **reply, "verified": verified, "chunks": chunks,
             "backend": backend, "seconds": round(time.time() - began, 1)}
 
 
-def ask(repo, question, backend=None, method="hybrid"):
-    return generate(question, retrieve.METHODS[method](repo, question), backend)
+STEPS = 3  # search, write, check: what the progress bar counts for a single-shot answer
+
+
+def ask(repo, question, backend=None, method="hybrid", progress=quiet):
+    """progress(label, done) is told each step: done=False when it starts, True when it ends."""
+    progress("Searching the code", done=False, kind="search")
+    chunks = retrieve.METHODS[method](repo, question)
+    progress(f"Searched the code: {len(chunks)} pieces found", kind="search")
+    return generate(question, chunks, backend, progress)

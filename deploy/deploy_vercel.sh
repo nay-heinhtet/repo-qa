@@ -251,7 +251,7 @@ GEMINI_KEY=$(ENV_FILE=.env _existing GEMINI_API_KEY || true)
 unset GEMINI_KEY
 say "Gemini key stored in the repo-qa-api project (never shown)."
 (cd deploy/vercel-api && $VERCEL env rm WEB_ORIGINS production --yes >/dev/null 2>&1 || true)
-(cd deploy/vercel-api && printf '%s' "https://example.invalid" | $VERCEL env add WEB_ORIGINS --environment production >/dev/null)
+(cd deploy/vercel-api && printf '%s' "$(_existing WEB_URL || echo https://example.invalid)" | $VERCEL env add WEB_ORIGINS --environment production >/dev/null)
 note "Uploading about 100 MB and installing packages takes a few minutes."
 (cd deploy/vercel-api && $VERCEL deploy --prod)
 say "Above, find the line 'Aliased:' (or the Production address): https://repo-qa-api....vercel.app"

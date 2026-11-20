@@ -2,7 +2,7 @@
 
 Ask questions about a code repository and get answers that cite file and line, each citation checked against the code the model actually read. The same index doubles as a code search for your own work, from the terminal or from inside Claude Code.
 
-**Live demo:** https://repo-qa-plum.vercel.app (RAG-Anything only, 10 questions an hour per visitor)
+**Live demo:** https://repoqa.vercel.app (RAG-Anything only, 10 questions an hour per visitor)
 
 ## What it does
 

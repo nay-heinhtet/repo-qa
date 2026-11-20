@@ -43,7 +43,7 @@ def test_rate_limit_and_cache(monkeypatch, tmp_path):
 
     calls = []
 
-    def fake_ask(path, question, backend=None):
+    def fake_ask(path, question, backend=None, progress=None):
         calls.append(question)
         return {"question": question, "answer": "x", "citations": [], "found": False, "verified": True,
                 "chunks": [], "backend": backend, "seconds": 0.0}
